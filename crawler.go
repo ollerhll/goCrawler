@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-var regExpLink *regexp.Regexp = regexp.MustCompile(`(?:src)|(?:href)="([^"]*)"`)
+var regExpLink *regexp.Regexp = regexp.MustCompile(`(?:src)|(?:href)="([^"\s]+)"`)
 
 //crawlers take a domain and crawl it, following every
 //internal link, and printing all links and static assets
@@ -43,16 +43,16 @@ func (crawler *Crawler) crawl(url string) {
 		return
 	}
 	bodyStr := string(body)
-	crawler.extractURLs(url, bodyStr, messages)
+	messages = crawler.extractURLs(url, bodyStr, messages)
 }
 
-func (crawler *Crawler) extractURLs(crawledURL, responseBody string, messages []string) {
+func (crawler *Crawler) extractURLs(crawledURL, responseBody string, messages []string) []string {
 	if foundURLs := regExpLink.FindAllStringSubmatch(responseBody, -1); foundURLs != nil {
 		url, err := url.Parse(crawledURL)
 		if err != nil {
 			errorMessage := fmt.Sprintf("Error crawling %s: %v", url, err)
 			messages = append(messages, errorMessage)
-			return
+			return messages
 		}
 		for _, foundURL := range foundURLs {
 			rawLink := foundURL[1]
@@ -60,9 +60,9 @@ func (crawler *Crawler) extractURLs(crawledURL, responseBody string, messages []
 			if err != nil {
 				errorMessage := fmt.Sprintf("Error crawling %s on discovered link %s: %v", url, rawLink, err)
 				messages = append(messages, errorMessage)
-				return
+				return messages
 			}
-			discoveredURL := fmt.Sprintf("Discovered link %s", rawLink)
+			discoveredURL := fmt.Sprintf("Discovered link %s on page %s", rawLink, crawledURL)
 			messages = append(messages, discoveredURL)
 			if parsedLink.IsAbs() {
 				messages = append(messages, crawler.addURL(rawLink))
@@ -71,6 +71,7 @@ func (crawler *Crawler) extractURLs(crawledURL, responseBody string, messages []
 			}
 		}
 	}
+	return messages
 }
 
 func (crawler *Crawler) addURL(url string) string {
@@ -78,9 +79,9 @@ func (crawler *Crawler) addURL(url string) string {
 		crawler.UpdateCrawledURLs(url)
 		crawler.Add(1)
 		crawler.urls <- url
-		return fmt.Sprintf("Crawling new domain url after filters: %s", url)
+		return ""
 	}
-	return fmt.Sprintf("Not crawling discovered link after filters: %s", url)
+	return ""
 }
 
 func InitCrawler(domain string) *Crawler {
@@ -96,7 +97,7 @@ func InitCrawler(domain string) *Crawler {
 		sync.WaitGroup{},
 	}
 	c.AddFilterFunction(func(url string) bool {
-		return strings.Contains(url, domain)
+		return strings.HasPrefix(url, domain)
 	})
 	return &c
 }
