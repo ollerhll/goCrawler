@@ -28,7 +28,7 @@ func (crawler *Crawler) crawl(url string) {
 	defer func() {
 		crawler.outputChan <- messages
 	}()
-	messages = append(messages, fmt.Sprintf("Crawling page: %s", url))
+	messages = append(messages, fmt.Sprintf("=======================================================\n\nCrawling page: %s", url))
 	response, err := http.Get(url)
 	if err != nil {
 		errorMessage := fmt.Sprintf("Error crawling %s: %v", url, err)
@@ -50,24 +50,26 @@ func (crawler *Crawler) extractURLs(crawledURL, responseBody string, messages []
 	if foundURLs := regExpLink.FindAllStringSubmatch(responseBody, -1); foundURLs != nil {
 		url, err := url.Parse(crawledURL)
 		if err != nil {
-			errorMessage := fmt.Sprintf("Error crawling %s: %v", url, err)
+			errorMessage := fmt.Sprintf("	Error crawling %s: %v", url, err)
 			messages = append(messages, errorMessage)
 			return messages
 		}
 		for _, foundURL := range foundURLs {
 			rawLink := foundURL[1]
-			parsedLink, err := url.Parse(rawLink)
-			if err != nil {
-				errorMessage := fmt.Sprintf("Error crawling %s on discovered link %s: %v", url, rawLink, err)
-				messages = append(messages, errorMessage)
-				return messages
-			}
-			discoveredURL := fmt.Sprintf("Discovered link %s on page %s", rawLink, crawledURL)
-			messages = append(messages, discoveredURL)
-			if parsedLink.IsAbs() {
-				messages = append(messages, crawler.addURL(rawLink))
-			} else {
-				crawler.addURL(url.ResolveReference(parsedLink).String())
+			if rawLink != "" {
+				parsedLink, err := url.Parse(rawLink)
+				if err != nil {
+					errorMessage := fmt.Sprintf("	Error crawling %s on discovered link %s: %v", url, rawLink, err)
+					messages = append(messages, errorMessage)
+					return messages
+				}
+				discoveredURL := fmt.Sprintf("	  Discovered link %s on page %s", rawLink, crawledURL)
+				messages = append(messages, discoveredURL)
+				if parsedLink.IsAbs() {
+					messages = append(messages, crawler.addURL(rawLink))
+				} else {
+					crawler.addURL(url.ResolveReference(parsedLink).String())
+				}
 			}
 		}
 	}
