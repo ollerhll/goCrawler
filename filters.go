@@ -2,18 +2,18 @@ package main
 
 import "sync"
 
-type filterFunction func(string) bool
+type FilterFunction func(string) bool
 
 //filters hold both a list of predicates to filter URLs by
 //and a concurrent (by virtue of the RWMutex) map
 //containing URLs that have already been crawled
 type Filter struct {
-	filterFunctions []filterFunction
-	crawledURLs     *map[string]bool
-	mapLock         sync.RWMutex
+	filterFunctions []FilterFunction
+	crawledURLs     map[string]bool
+	sync.RWMutex
 }
 
-func (filter *Filter) AddFilterFunction(filterFunc filterFunction) {
+func (filter *Filter) AddFilterFunction(filterFunc FilterFunction) {
 	filter.filterFunctions = append(filter.filterFunctions, filterFunc)
 	return
 }
